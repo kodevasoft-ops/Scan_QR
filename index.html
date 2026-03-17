@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR967un5DdXhLKKZqb52wF7MY7RbknnyYQjuw&s" type="image/x-icon">
+    <title>Escáner de Códigos QR</title>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #reader {
+            width: 100%;
+            max-width: 640px;
+            height: 480px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .data-container {
+            flex: 1;
+            max-width: 4000px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .data-container table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .data-container th, .data-container td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .data-container th {
+            background-color: #333;
+            color: #fff;
+        }
+        .remove-btn {
+            background-color: #ff4d4d;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .remove-btn:hover {
+            background-color: #ff1a1a;
+        }
+        .export-btn, .add-btn, .color-btn {
+            margin-top: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .export-btn:hover, .add-btn:hover, .color-btn:hover {
+            background-color: #45a049;
+        }
+        .scanned-data {
+            font-weight: bold;
+            margin: 20px 0;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Escáner de Códigos QR</h1>
+    <div class="container">
+        <div id="reader"></div>
+        <div class="data-container">
+            <h2>Datos Escaneados</h2>
+            <div class="scanned-data" id="scannedData">Escanee un código QR...</div>
+            <button class="add-btn" onclick="addRow()" id="addBtn" disabled>Agregar</button>
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>Dato QR</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <button class="export-btn" onclick="exportToExcel()">Exportar a Excel</button>
+            <button class="color-btn" onclick="changeColor()">Cambiar Color Pagina</button>
+        </div>
+    </div>
+
+    <script>
+        const html5QrCode = new Html5Qrcode("reader");
+        const scannedDataElement = document.getElementById("scannedData");
+        const addButton = document.getElementById("addBtn");
+        const tableBody = document.querySelector("#data-table tbody");
+        let lastScannedData = "";
+        let scanCount = 0;
+
+        const colors = [
+            { name: "Rojo", value: "#ff0000" },
+            { name: "Verde", value: "#4CAF50" },
+            { name: "Azul", value: "#1E90FF" },
+            { name: "Naranja", value: "#FFA500" },
+            { name: "Verde Claro", value: "#9cf83b" },
+            { name: "Naranja", value: "#FFA500" },
+            { name: "Marino", value: "#00fff3" },
+            { name: "RosaB", value: "#ff00f3" },
+            { name: "Gris", value: "#9b979a" },
+            { name: "Negro", value: "#000000" },
+            { name: "Amarillo", value: "#FFD700" }
+        ];
+
+        html5QrCode.start(
+            { facingMode: "environment" },
+            {
+                fps: 60,
+                qrbox: 320,
+                aspectRatio: 4 / 3,
+                disableFlip: true
+            },
+            (decodedText) => {
+                if (decodedText !== lastScannedData) {
+                    lastScannedData = decodedText;
+                    scannedDataElement.textContent = `Código QR: ${decodedText}`;
+                    addButton.disabled = false;
+                }
+            },
+            (errorMessage) => {
+                console.warn("Error de escaneo:", errorMessage);
+            }
+        ).catch((err) => {
+            console.error("Error al iniciar la cámara:", err);
+        });
+
+        function addRow() {
+            if (!lastScannedData) return;
+
+            const row = document.createElement("tr");
+            const dataCell = document.createElement("td");
+            dataCell.textContent = lastScannedData;
+
+            const actionCell = document.createElement("td");
+            const removeButton = document.createElement("button");
+            removeButton.textContent = "X";
+            removeButton.className = "remove-btn";
+            removeButton.onclick = () => row.remove();
+            actionCell.appendChild(removeButton);
+
+            row.appendChild(dataCell);
+            row.appendChild(actionCell);
+            tableBody.appendChild(row);
+
+            scanCount++;
+            document.querySelector(".scanned-data").textContent = `QR escaneados: ${scanCount}`;
+            lastScannedData = "";
+            addButton.disabled = true;
+        }
+
+        function exportToExcel() {
+            const rows = Array.from(tableBody.querySelectorAll("tr"));
+            const data = rows.map(row => [row.querySelector("td").textContent]);
+            const worksheet = XLSX.utils.aoa_to_sheet([["Dato QR"]].concat(data));
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Datos QR");
+            XLSX.writeFile(workbook, "datos_qr.xlsx");
+        }
+
+        function changeColor() {
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            document.body.style.backgroundColor = randomColor.value;
+            alert(`Color cambiado a ${randomColor.name}`);
+        }
+    </script>
+</body>
+</html>
+
